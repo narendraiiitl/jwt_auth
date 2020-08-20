@@ -1,5 +1,5 @@
 const { required } = require("@hapi/joi");
-
+const reftoken = require('../model/reftokens');
 const jwt= require('jsonwebtoken')
 const createError = require("http-errors")
 require('dotenv').config();
@@ -50,23 +50,55 @@ module.exports = {
             issuer:"nsn",
             audience:userid
          }
-         jwt.sign(payload,secret,option,(err,token)=>{
+         jwt.sign(payload,secret,option,async (err,token)=>{
              if(err) 
              {
                  console.log(err.message);
 
                return reject(createError.InternalServerError())
              }   
+          const Tok =  await reftoken.findOneAndUpdate({userid:userid}, {$set:{refreshToken:token}}, {new: true}, (err, doc) => {
+                if (err) {
+                    console.log("Something wrong when updating data!");
+                }
+            
+                console.log(doc);
+            });
+            console.log(Tok)
+            if(!Tok)
+            {
+                const refresh = new reftoken({userid:userid,refreshToken:token});
+                await refresh.save()
+                .then((savedtoken)=>{
+                    console.log(savedtoken)
+                })
+                .catch((err)=>{
+                    console.log(err.message)
+                    throw createError.Conflict("failed in saving refersh token")
+                })
+            }
              resolve(token)
          })
         })
     },
     verifyRefreshToken:(refreshToken)=>{
         return new Promise((resolve,reject)=>{
-            JWT.verify(refreshToken,process.env.refreshTokenSecret,(err,payload)=>{
+            JWT.verify(refreshToken,process.env.refreshTokenSecret,async(err,payload)=>{
                 if(err) return reject(createError.Unauthorized())
                 const userid = payload.aud 
+                const user = await reftoken.find({userid:userid},(err,usr)=>{
+                    if(err) {
+                        console.log(err.message)
+                        reject(createError.InternalServerError())
+                        return
+                    }
+                    console.log(usr)
+                })
+                if(user.refreshToken === refreshToken)
                 resolve(userid)
+                else{
+                    reject(createError.Unauthorized())
+                }
             })
         })
     }

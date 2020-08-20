@@ -7,6 +7,13 @@ const {verifyAccessToken}= require('./helper/jwt_helper');
 require('./helper/init_mongoose')
 require('dotenv').config();
 
+// const client = require('./helper/init_redis');
+// client.set('foo','bar');
+// client.get('foo',(err,value)=>{
+//     if(err) console.log(err.message)
+//     console.log(value);
+// })
+
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({extended:true}))
